@@ -9,10 +9,17 @@ export async function GET(request: NextRequest) {
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
+    
     if (!error) {
+      // Successful authentication
       return NextResponse.redirect(`${origin}${next}`);
     }
+    
+    // Log error for debugging
+    console.error('Auth callback error:', error);
+    return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`);
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`);
+  // No code provided
+  return NextResponse.redirect(`${origin}/login?error=no_code_provided`);
 }
