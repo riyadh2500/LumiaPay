@@ -77,6 +77,9 @@ CREATE INDEX IF NOT EXISTS idx_payments_user_created
 -- Payment Transactions RLS
 ALTER TABLE payment_transactions ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policy if it exists
+DROP POLICY IF EXISTS "Users can view own payment transactions" ON payment_transactions;
+
 CREATE POLICY "Users can view own payment transactions"
   ON payment_transactions FOR SELECT
   USING (
@@ -87,6 +90,9 @@ CREATE POLICY "Users can view own payment transactions"
 
 -- Payment Events RLS
 ALTER TABLE payment_events ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policy if it exists
+DROP POLICY IF EXISTS "Users can view own payment events" ON payment_events;
 
 CREATE POLICY "Users can view own payment events"
   ON payment_events FOR SELECT

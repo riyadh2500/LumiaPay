@@ -171,15 +171,24 @@ export async function verifySpecificTransaction(
       issues.push(`Transaction not sent to ${options.symbol} contract`);
     }
 
-    // Find Transfer event in logs
+    // Find Transfer event in logs TO OUR RECIPIENT
+    // A transaction may have multiple Transfer events, we need the one to our recipient
     let transferLog = receipt.logs.find(
-      (log) =>
-        log.address.toLowerCase() === token.contractAddress.toLowerCase() &&
-        log.topics[0] === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef' // keccak256 of Transfer(address,address,uint256)
+      (log) => {
+        if (log.address.toLowerCase() !== token.contractAddress.toLowerCase()) {
+          return false;
+        }
+        if (log.topics[0] !== '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef') {
+          return false; // Not a Transfer event
+        }
+        // topics[2] is the 'to' address (indexed parameter)
+        const toAddr = '0x' + log.topics[2]!.slice(26);
+        return toAddr.toLowerCase() === recipient;
+      }
     );
 
     if (!transferLog) {
-      issues.push('No Transfer event found in transaction');
+      issues.push(`No Transfer event found to recipient ${recipient}`);
     }
 
     if (issues.length > 0) {
@@ -190,7 +199,7 @@ export async function verifySpecificTransaction(
       };
     }
 
-    // Parse Transfer event manually since decodeEventLog might not be available
+    // Parse Transfer event manually
     // Topics: [signature, from (indexed), to (indexed)]
     // Data: value (non-indexed)
     const toAddress = '0x' + transferLog!.topics[2]!.slice(26); // Remove padding from indexed address
@@ -199,11 +208,6 @@ export async function verifySpecificTransaction(
 
     const to = toAddress.toLowerCase();
     const from = fromAddress.toLowerCase();
-
-    // Verify recipient
-    if (to.toLowerCase() !== recipient) {
-      issues.push('Transaction sent to wrong recipient');
-    }
 
     // Verify amount
     const receivedAmount = formatUnits(value, token.decimals);

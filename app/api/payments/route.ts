@@ -4,6 +4,12 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ok, err, unauthorized } from '@/lib/http';
 import { TOKEN_LIST } from '@/lib/tokens';
+import { 
+  createPaymentIntent, 
+  getPaymentsByUser,
+  ValidationError,
+  PaymentEngineError 
+} from '@/lib/payment-engine';
 
 const VALID_SYMBOLS = TOKEN_LIST.map((t) => t.symbol) as [string, ...string[]];
 
@@ -13,15 +19,13 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return unauthorized();
 
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from('payments')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
-
-  if (error) return err(error.message, 500);
-  return ok(data ?? []);
+  try {
+    const payments = await getPaymentsByUser(user.id);
+    return ok(payments);
+  } catch (error) {
+    console.error('[GET /api/payments]', error);
+    return err('Failed to fetch payments', 500);
+  }
 }
 
 // ─── POST /api/payments ──────────────────────────────────────────────────────
@@ -48,40 +52,42 @@ export async function POST(request: NextRequest) {
     return err(parsed.error.errors[0].message);
   }
 
-  const admin = createAdminClient();
+  try {
+    const admin = createAdminClient();
 
-  // Fetch merchant wallet address.
-  const { data: merchant, error: mErr } = await admin
-    .from('merchants')
-    .select('wallet_address')
-    .eq('user_id', user.id)
-    .single();
+    // Fetch merchant wallet address.
+    const { data: merchant, error: mErr } = await admin
+      .from('merchants')
+      .select('wallet_address')
+      .eq('user_id', user.id)
+      .single();
 
-  if (mErr || !merchant) {
-    return err('Merchant profile not found. Please complete settings first.', 400);
-  }
+    if (mErr || !merchant) {
+      return err('Merchant profile not found. Please complete settings first.', 400);
+    }
 
-  // Set expires_at 15 minutes from now (UTC ISO string).
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-
-  const { data, error } = await admin
-    .from('payments')
-    .insert({
+    // Use Payment Engine to create payment intent
+    const result = await createPaymentIntent({
       user_id: user.id,
       label: parsed.data.label,
       amount: parsed.data.amount,
-      currency: parsed.data.currency,
+      currency: parsed.data.currency as 'USDC' | 'EURC',
       wallet_address: merchant.wallet_address,
-      status: 'pending',
-      expires_at: expiresAt,
-    })
-    .select()
-    .single();
+      ttl_seconds: 60 * 60, // 1 hour (keeping existing behavior)
+    });
 
-  if (error) {
+    return ok(result.payment, 201);
+  } catch (error) {
     console.error('[POST /api/payments]', error);
-    return err(error.message, 500);
-  }
+    
+    if (error instanceof ValidationError) {
+      return err(error.message, error.statusCode);
+    }
+    
+    if (error instanceof PaymentEngineError) {
+      return err(error.message, error.statusCode);
+    }
 
-  return ok(data, 201);
+    return err('Failed to create payment', 500);
+  }
 }

@@ -1,9 +1,15 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { ok, err, unauthorized, notFound } from '@/lib/http';
-import { verifyPayment } from '@/lib/evm-verify';
-import { TokenSymbol } from '@/lib/tokens';
+import {
+  getPaymentById,
+  verifyPayment,
+  cancelPendingPayment,
+  checkAndExpirePayment,
+  ValidationError,
+  PaymentEngineError,
+  VerificationError,
+} from '@/lib/payment-engine';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -11,32 +17,25 @@ type Params = { params: Promise<{ id: string }> };
 // Returns a single payment record. Public — used by the checkout page.
 export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const admin = createAdminClient();
 
-  const { data, error } = await admin
-    .from('payments')
-    .select('*')
-    .eq('id', id)
-    .single();
+  try {
+    // Use Payment Engine to get payment with auto-expiry check
+    const payment = await getPaymentById(id);
 
-  if (error || !data) return notFound('Payment');
+    if (!payment) {
+      return notFound('Payment');
+    }
 
-  // Auto-expire if TTL has passed.
-  if (data.status === 'pending') {
-    const now = new Date().toISOString();
-    const { data: updated } = await admin
-      .from('payments')
-      .update({ status: 'expired' })
-      .eq('id', id)
-      .eq('status', 'pending')
-      .lt('expires_at', now)
-      .select('status')
-      .single();
+    return ok(payment);
+  } catch (error) {
+    console.error('[GET /api/payments/[id]]', error);
+    
+    if (error instanceof ValidationError) {
+      return err(error.message, error.statusCode);
+    }
 
-    if (updated) data.status = 'expired';
+    return err('Failed to fetch payment', 500);
   }
-
-  return ok(data);
 }
 
 // ─── POST /api/payments/[id]/verify ─────────────────────────────────────────
@@ -50,55 +49,37 @@ export async function POST(request: NextRequest, { params }: Params) {
     return err('Unknown action', 400);
   }
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  try {
+    // Use Payment Engine for verification
+    const result = await verifyPayment({
+      payment_id: id,
+      force: false, // Don't force re-verification if already paid
+    });
 
-  const admin = createAdminClient();
+    // Return result in format expected by frontend
+    return ok({
+      status: result.status,
+      txHash: result.tx_hash,
+      reason: result.message,
+      details: result.details,
+    });
+  } catch (error) {
+    console.error('[POST /api/payments/[id]/verify]', error);
 
-  const { data: payment, error } = await admin
-    .from('payments')
-    .select('*')
-    .eq('id', id)
-    .single();
+    if (error instanceof ValidationError) {
+      return err(error.message, error.statusCode);
+    }
 
-  if (error || !payment) return notFound('Payment');
+    if (error instanceof VerificationError) {
+      return err(error.message, error.statusCode);
+    }
 
-  // Only the owning merchant or the public checkout can verify.
-  // For the checkout page, no auth is needed (payment is public by id).
-  if (payment.status !== 'pending') {
-    return ok({ status: payment.status });
+    if (error instanceof PaymentEngineError) {
+      return err(error.message, error.statusCode);
+    }
+
+    return err('Verification failed', 500);
   }
-
-  // Check expiry.
-  const { data: expiredCheck } = await admin
-    .from('payments')
-    .update({ status: 'expired' })
-    .eq('id', id)
-    .eq('status', 'pending')
-    .lt('expires_at', new Date().toISOString())
-    .select('status')
-    .single();
-
-  if (expiredCheck) {
-    return ok({ status: 'expired' });
-  }
-
-  const result = await verifyPayment({
-    symbol: payment.currency as TokenSymbol,
-    recipientAddress: payment.wallet_address,
-    expectedAmount: payment.amount,
-    createdAt: payment.created_at,
-  });
-
-  if (result.verified) {
-    await admin
-      .from('payments')
-      .update({ status: 'paid', tx_hash: result.txHash })
-      .eq('id', id);
-    return ok({ status: 'paid', txHash: result.txHash });
-  }
-
-  return ok({ status: 'pending', reason: result.reason });
 }
 
 // ─── DELETE /api/payments/[id] ───────────────────────────────────────────────
@@ -110,18 +91,21 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return unauthorized();
 
-  const admin = createAdminClient();
+  try {
+    // Use Payment Engine for cancellation
+    await cancelPendingPayment(id, user.id);
+    return ok({ success: true });
+  } catch (error) {
+    console.error('[DELETE /api/payments/[id]]', error);
 
-  const { data: payment } = await admin
-    .from('payments')
-    .select('user_id, status')
-    .eq('id', id)
-    .single();
+    if (error instanceof ValidationError) {
+      return err(error.message, error.statusCode);
+    }
 
-  if (!payment) return notFound('Payment');
-  if (payment.user_id !== user.id) return unauthorized();
-  if (payment.status !== 'pending') return err('Only pending payments can be cancelled', 400);
+    if (error instanceof PaymentEngineError) {
+      return err(error.message, error.statusCode);
+    }
 
-  await admin.from('payments').update({ status: 'failed' }).eq('id', id);
-  return ok({ success: true });
+    return err('Failed to cancel payment', 500);
+  }
 }

@@ -91,7 +91,7 @@ describe('Payment Validator', () => {
 
   describe('validateAddress', () => {
     test('accepts valid Ethereum addresses', () => {
-      expect(() => validateAddress('0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb')).not.toThrow();
+      expect(() => validateAddress('0x742d35cc6634c0532925a3b844bc9e7595f0beb0')).not.toThrow();
       expect(() => validateAddress('0x0000000000000000000000000000000000000001')).not.toThrow();
     });
 
@@ -125,7 +125,7 @@ describe('Payment Validator', () => {
       label: 'Test Payment',
       amount: '10.50',
       currency: 'USDC',
-      wallet_address: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+      wallet_address: '0x742d35cc6634c0532925a3b844bc9e7595f0beb0',
     };
 
     test('accepts valid input', () => {
@@ -177,9 +177,9 @@ describe('Payment Validator', () => {
     test('normalizes wallet address to lowercase', () => {
       const result = validatePaymentIntentInput({
         ...validInput,
-        wallet_address: '0x742D35CC6634C0532925A3B844BC9E7595F0BEB',
+        wallet_address: '0x742D35CC6634c0532925A3b844BC9E7595F0BEb0', // This is the proper checksummed version
       });
-      expect(result.wallet_address).toBe('0x742d35cc6634c0532925a3b844bc9e7595f0beb');
+      expect(result.wallet_address).toBe('0x742d35cc6634c0532925a3b844bc9e7595f0beb0');
     });
 
     test('trims label whitespace', () => {
@@ -395,7 +395,7 @@ describe('Concurrency Safety', () => {
       label: 'Test',
       amount: '10.50',
       currency: 'USDC',
-      wallet_address: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+      wallet_address: '0x742d35cc6634c0532925a3b844bc9e7595f0beb0',
     };
 
     const iterations = 100;
