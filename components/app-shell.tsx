@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import Sidebar from './sidebar';
 
 interface AppShellProps {
@@ -17,7 +18,13 @@ export default function AppShell({ children, email }: AppShellProps) {
       {/* ── Top bar ── */}
       <header className="topbar">
         <Link href="/dashboard" className="brand">
-          <span className="brand-mark">L</span>
+          <Image
+            src="/logo.png"
+            alt="LumiaPay"
+            width={32}
+            height={32}
+            className="brand-logo"
+          />
           LumiaPay
         </Link>
 

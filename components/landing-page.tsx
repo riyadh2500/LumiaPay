@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   Zap,
   Shield,
@@ -19,7 +20,13 @@ export default function LandingPage() {
       <div className="site">
         <nav className="site-nav">
           <Link href="/" className="brand">
-            <span className="brand-mark">L</span>
+            <Image
+              src="/logo.png"
+              alt="LumiaPay"
+              width={32}
+              height={32}
+              className="brand-logo"
+            />
             LumiaPay
           </Link>
 
@@ -329,8 +336,8 @@ export default function LandingPage() {
         {/* ── Footer ── */}
         <footer className="site-footer">
           <div>
-            <Link href="/" className="brand" style={{ marginBottom: 10, display: 'flex' }}>
-              <span className="brand-mark">L</span>
+            <Link href="/" className="brand" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Image src="/logo.png" alt="LumiaPay" width={32} height={32} />
               LumiaPay
             </Link>
             <p className="site-footer-bottom">© {new Date().getFullYear()} LumiaPay. All rights reserved.</p>

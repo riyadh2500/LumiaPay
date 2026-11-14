@@ -5,6 +5,10 @@ export const metadata: Metadata = {
   title: 'LumiaPay — Crypto Payment Gateway',
   description:
     'Accept USDC and EURC payments on Arc Network. No middlemen, instant settlement.',
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export default function RootLayout({
