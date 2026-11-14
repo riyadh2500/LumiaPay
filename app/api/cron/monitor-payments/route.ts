@@ -1,113 +1,73 @@
 /**
- * Background Payment Monitoring Cron Job
- * 
- * Monitors pending payments and marks expired ones as 'expired'.
- * Runs every 5 minutes via Vercel Cron.
- * 
- * Configure in vercel.json with schedule: every 5 minutes
+ * Background Payment Monitoring — Cron Handler
+ *
+ * Expires pending payments that have passed their TTL.
+ * Triggered every 5 minutes via Vercel Cron (see vercel.json).
+ *
+ * Authentication:
+ *   Production: requires Authorization: Bearer <CRON_SECRET>
+ *   Development: auth check is skipped so the route can be hit manually.
+ *
+ * Implementation delegates entirely to expirePendingPayments() from the
+ * Payment Engine so that all expiry logic, admin-client usage, and event
+ * emission remain in one place (payment-lifecycle.ts).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { expirePendingPayments } from '@/lib/payment-engine';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
-  try {
-    // Verify request is from Vercel Cron
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  // ── Authentication ────────────────────────────────────────────────────────
+  if (process.env.NODE_ENV === 'production') {
+    const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret) {
+      console.error('[Cron] CRON_SECRET environment variable is not set');
+      return NextResponse.json(
+        { error: 'Cron secret not configured' },
+        { status: 500 }
+      );
+    }
+
     const authHeader = request.headers.get('authorization');
-    if (process.env.NODE_ENV === 'production') {
-      const cronSecret = process.env.CRON_SECRET;
-      if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+  }
 
-    const supabase = await createClient();
-    const now = new Date().toISOString();
+  // ── Expiry run ────────────────────────────────────────────────────────────
+  const startedAt = new Date().toISOString();
 
-    // Find all payments that are pending but past their expiry time
-    const { data: expiredPayments, error: fetchError } = await supabase
-      .from('payments')
-      .select('id, label, expires_at')
-      .eq('status', 'pending')
-      .lt('expires_at', now);
+  try {
+    // expirePendingPayments() uses createAdminClient() internally and emits
+    // payment_events rows using the correct schema (event_type, status, data).
+    const expiredCount = await expirePendingPayments();
 
-    if (fetchError) {
-      console.error('[Cron] Error fetching expired payments:', fetchError);
-      return NextResponse.json(
-        { error: 'Failed to fetch expired payments', details: fetchError.message },
-        { status: 500 }
-      );
-    }
-
-    if (!expiredPayments || expiredPayments.length === 0) {
-      return NextResponse.json({
-        success: true,
-        message: 'No expired payments found',
-        expired: 0,
-        timestamp: now,
-      });
-    }
-
-    // Update all expired payments to 'expired' status
-    const paymentIds = expiredPayments.map((p) => p.id);
-    
-    const { error: updateError } = await supabase
-      .from('payments')
-      .update({ 
-        status: 'expired',
-        updated_at: now,
-      })
-      .in('id', paymentIds);
-
-    if (updateError) {
-      console.error('[Cron] Error updating expired payments:', updateError);
-      return NextResponse.json(
-        { error: 'Failed to update expired payments', details: updateError.message },
-        { status: 500 }
-      );
-    }
-
-    // Log events for audit trail
-    const events = expiredPayments.map((payment) => ({
-      payment_id: payment.id,
-      event_type: 'status_change',
-      old_status: 'pending',
-      new_status: 'expired',
-      metadata: {
-        reason: 'ttl_expired',
-        expired_at: payment.expires_at,
-        detected_at: now,
-      },
-      created_at: now,
-    }));
-
-    const { error: eventsError } = await supabase
-      .from('payment_events')
-      .insert(events);
-
-    if (eventsError) {
-      console.error('[Cron] Error logging payment events:', eventsError);
-      // Don't fail the whole operation if event logging fails
-    }
-
-    console.log(`[Cron] Marked ${paymentIds.length} payments as expired`);
-
-    return NextResponse.json({
+    const response = {
       success: true,
-      message: `Marked ${paymentIds.length} payments as expired`,
-      expired: paymentIds.length,
-      payment_ids: paymentIds,
-      timestamp: now,
-    });
+      expired: expiredCount,
+      message:
+        expiredCount === 0
+          ? 'No expired payments found'
+          : `Marked ${expiredCount} payment(s) as expired`,
+      started_at: startedAt,
+      completed_at: new Date().toISOString(),
+    };
 
+    console.log(`[Cron] ${response.message}`);
+    return NextResponse.json(response, { status: 200 });
   } catch (error) {
-    console.error('[Cron] Unexpected error:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[Cron] expirePendingPayments failed:', message);
+
     return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error',
+      {
+        success: false,
+        error: 'Failed to expire pending payments',
+        detail: message,
+        started_at: startedAt,
+        failed_at: new Date().toISOString(),
       },
       { status: 500 }
     );
