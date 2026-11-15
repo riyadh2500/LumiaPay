@@ -1,0 +1,222 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║              📧 EMAIL VERIFICATION - কীভাবে কাজ করে                     ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│  STEP 1: User Signup করে                                               │
+│  ────────────────────────                                               │
+│                                                                         │
+│  User → /signup page → Email + Password দেয় → "Create account" click  │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│  STEP 2: Supabase Account তৈরি করে (কিন্তু unconfirmed থাকে)         │
+│  ────────────────────────────────────────────────────                   │
+│                                                                         │
+│  supabase.auth.signUp({                                                │
+│    email: "user@example.com",                                          │
+│    password: "password123",                                            │
+│    options: {                                                          │
+│      emailRedirectTo: "https://lumia-pay.vercel.app/auth/callback"    │
+│    }                                                                   │
+│  })                                                                    │
+│                                                                         │
+│  Status: ✅ Account created                                             │
+│          ⏳ Email confirmation pending                                  │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│  STEP 3: Supabase Confirmation Email পাঠায়                            │
+│  ────────────────────────────────────────                               │
+│                                                                         │
+│  From: noreply@mail.supabase.io                                        │
+│  To: user@example.com                                                  │
+│  Subject: Confirm Your Signup                                          │
+│                                                                         │
+│  Body:                                                                 │
+│  ┌───────────────────────────────────────────────────────────────┐    │
+│  │ Hi there,                                                     │    │
+│  │                                                               │    │
+│  │ Follow this link to confirm your account:                    │    │
+│  │                                                               │    │
+│  │ [Confirm your email]                                         │    │
+│  │  ↑                                                            │    │
+│  │  └─ https://xyz.supabase.co/auth/v1/verify?                 │    │
+│  │     token=abc123&type=signup&                                │    │
+│  │     redirect_to=https://lumia-pay.vercel.app/auth/callback   │    │
+│  │                                                               │    │
+│  │ Thanks!                                                       │    │
+│  └───────────────────────────────────────────────────────────────┘    │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│  STEP 4: User Email-এ Link Click করে                                  │
+│  ──────────────────────────────────────                                 │
+│                                                                         │
+│  User inbox → Email খোলে → "Confirm your email" link click করে        │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│  STEP 5: Supabase Verification করে                                    │
+│  ────────────────────────────────                                       │
+│                                                                         │
+│  1. Token verify করে                                                  │
+│  2. Account status update করে: confirmed ✅                            │
+│  3. Session token generate করে                                        │
+│  4. Redirect করে: /auth/callback?code=xyz789                          │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│  STEP 6: LumiaPay Callback Route Handle করে                           │
+│  ─────────────────────────────────────────────                          │
+│                                                                         │
+│  File: app/auth/callback/route.ts                                      │
+│                                                                         │
+│  export async function GET(request) {                                  │
+│    const code = searchParams.get('code')                               │
+│                                                                         │
+│    // Code দিয়ে session পায়                                           │
+│    const { error } = await supabase.auth.exchangeCodeForSession(code)  │
+│                                                                         │
+│    if (!error) {                                                       │
+│      // Success! Dashboard-এ পাঠায়                                     │
+│      return redirect('/dashboard')                                     │
+│    }                                                                   │
+│  }                                                                     │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│  STEP 7: User Dashboard-এ পৌঁছায়                                      │
+│  ──────────────────────────────────                                     │
+│                                                                         │
+│  ✅ Account verified                                                    │
+│  ✅ Logged in                                                           │
+│  ✅ Dashboard accessible                                                │
+│                                                                         │
+│  User এখন LumiaPay ব্যবহার করতে পারবে! 🎉                            │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════
+
+🔐 SECURITY FLOW:
+
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│   Browser   │────>│   Supabase   │────>│    Email    │────>│   User   │
+│  (Signup)   │     │   (Create)   │     │  (Deliver)  │     │  (Read)  │
+└─────────────┘     └──────────────┘     └─────────────┘     └──────────┘
+                                                                    │
+                                                                    ▼
+                                                            ┌──────────────┐
+                                                            │ Click Link   │
+                                                            └──────────────┘
+                                                                    │
+                                                                    ▼
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│  Dashboard  │<────│  /callback   │<────│   Supabase  │<────│   Link   │
+│   (Login)   │     │  (Session)   │     │   (Verify)  │     │ (Token)  │
+└─────────────┘     └──────────────┘     └─────────────┘     └──────────┘
+
+═══════════════════════════════════════════════════════════════════════════
+
+⚙️ CONFIGURATION NEEDED:
+
+1. Supabase Dashboard:
+   ✅ Enable email confirmations: ON
+   ✅ Site URL: https://lumia-pay.vercel.app
+   ✅ Redirect URLs: https://lumia-pay.vercel.app/auth/callback
+
+2. LumiaPay Code:
+   ✅ Signup form (already done)
+   ✅ Callback route (already done)
+   ✅ emailRedirectTo option (already set)
+
+3. Email Provider:
+   ✅ Supabase default (free, works out of the box)
+   ⚙️ Custom SMTP (optional, for branded emails)
+
+═══════════════════════════════════════════════════════════════════════════
+
+📋 CHECKLIST:
+
+Supabase Settings:
+☐ Authentication → Settings → Email Auth → Enable confirmations: ON
+☐ Authentication → Settings → Site URL: Set করা
+☐ Authentication → Settings → Redirect URLs: /auth/callback added
+
+Code:
+☐ app/auth/callback/route.ts exists ✅
+☐ emailRedirectTo option set ✅
+☐ Success message shows ✅
+
+Testing:
+☐ Signup করো
+☐ Email check করো
+☐ Link click করো
+☐ Dashboard-এ redirect হয় ✅
+
+═══════════════════════════════════════════════════════════════════════════
+
+🐛 COMMON ISSUES:
+
+❌ Email না আসলে:
+   → Spam folder check করো
+   → Supabase Logs check করো (Dashboard → Authentication → Logs)
+   → Real email address ব্যবহার করো (disposable email নয়)
+
+❌ Link কাজ না করলে:
+   → Redirect URL add করেছো কিনা check করো
+   → Site URL ঠিক আছে কিনা check করো
+   → Browser console-এ error দেখো
+
+❌ "Invalid redirect URL" error:
+   → Redirect URLs section-এ exact URL add করো
+   → Protocol check করো (https:// vs http://)
+   → Trailing slash (/) check করো
+
+═══════════════════════════════════════════════════════════════════════════
+
+✅ তোমার CODE-এ এগুলো ALREADY আছে:
+
+1. ✅ Signup form with emailRedirectTo
+2. ✅ Success message display
+3. ✅ Callback route implementation
+4. ✅ Session exchange logic
+5. ✅ Dashboard redirect
+
+শুধু SUPABASE DASHBOARD-এ settings করতে হবে! 🎯
+
+═══════════════════════════════════════════════════════════════════════════
+
+🚀 NEXT STEPS:
+
+1. EMAIL_VERIFICATION_CHECKLIST.md follow করো
+2. Supabase Dashboard-এ settings করো
+3. Test করো local-এ (npm run dev)
+4. Production-এ deploy করো (vercel --prod)
+5. Live test করো
+
+সব কিছু ready! তুমি শুধু Supabase Dashboard-এ যাও! 👍
+
+═══════════════════════════════════════════════════════════════════════════
