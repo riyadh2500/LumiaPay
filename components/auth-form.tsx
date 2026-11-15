@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft, Check, Mail } from 'lucide-react';
 
 type Mode = 'login' | 'signup';
 
@@ -19,6 +19,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [useMagicLink, setUseMagicLink] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,6 +29,25 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
     const supabase = createClient();
 
+    // Magic Link (Passwordless) Login
+    if (useMagicLink) {
+      const { error: magicLinkError } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${location.origin}/auth/callback`,
+        },
+      });
+
+      if (magicLinkError) {
+        setError(magicLinkError.message);
+      } else {
+        setSuccess('Check your email for a magic link to sign in! 🎉');
+      }
+      setLoading(false);
+      return;
+    }
+
+    // Regular signup/login with password
     if (mode === 'signup') {
       const { error: signUpError } = await supabase.auth.signUp({
         email,
@@ -137,19 +157,21 @@ export default function AuthForm({ mode }: AuthFormProps) {
                 />
               </div>
 
-              <div className="field">
-                <label htmlFor="password">Password</label>
-                <input
-                  id="password"
-                  type="password"
-                  autoComplete={isLogin ? 'current-password' : 'new-password'}
-                  required
-                  minLength={8}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={isLogin ? '••••••••' : 'Min 8 characters'}
-                />
-              </div>
+              {!useMagicLink && (
+                <div className="field">
+                  <label htmlFor="password">Password</label>
+                  <input
+                    id="password"
+                    type="password"
+                    autoComplete={isLogin ? 'current-password' : 'new-password'}
+                    required
+                    minLength={8}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={isLogin ? '••••••••' : 'Min 8 characters'}
+                  />
+                </div>
+              )}
 
               <button
                 type="submit"
@@ -159,10 +181,38 @@ export default function AuthForm({ mode }: AuthFormProps) {
               >
                 {loading
                   ? 'Please wait…'
+                  : useMagicLink
+                  ? 'Send magic link'
                   : isLogin
                   ? 'Sign in'
                   : 'Create account'}
               </button>
+
+              {isLogin && (
+                <button
+                  type="button"
+                  onClick={() => setUseMagicLink(!useMagicLink)}
+                  style={{
+                    width: '100%',
+                    marginTop: 12,
+                    padding: '10px 16px',
+                    background: 'transparent',
+                    border: '1px solid var(--border)',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: 'var(--ink)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <Mail size={16} />
+                  {useMagicLink ? 'Use password instead' : 'Sign in with email link'}
+                </button>
+              )}
             </form>
           )}
 
