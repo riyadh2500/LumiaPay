@@ -3,13 +3,22 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ok, err, unauthorized } from '@/lib/http';
+import {
+  checkRateLimit,
+  rateLimitedResponse,
+  addRateLimitHeaders,
+  RATE_LIMIT_PROFILES,
+} from '@/lib/rate-limit';
 
 // ─── GET /api/merchant ──────────────────────────────────────────────────────
-// Returns the current user's merchant profile.
 export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return unauthorized();
+
+  // Rate limit by user ID — 30 req/min
+  const rl = await checkRateLimit(RATE_LIMIT_PROFILES.MERCHANT, user.id);
+  if (!rl.allowed) return rateLimitedResponse(rl);
 
   const admin = createAdminClient();
   const { data, error } = await admin
@@ -19,16 +28,14 @@ export async function GET() {
     .single();
 
   if (error) {
-    // No profile yet — return empty object so the settings page can handle first-time setup.
-    if (error.code === 'PGRST116') return ok(null);
+    if (error.code === 'PGRST116') return addRateLimitHeaders(ok(null), rl);
     return err(error.message, 500);
   }
 
-  return ok(data);
+  return addRateLimitHeaders(ok(data), rl);
 }
 
 // ─── PUT /api/merchant ──────────────────────────────────────────────────────
-// Upserts the merchant profile (name + wallet address).
 const MerchantSchema = z.object({
   business_name: z.string().min(1).max(120),
   wallet_address: z
@@ -41,6 +48,10 @@ export async function PUT(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return unauthorized();
 
+  // Rate limit by user ID — 30 req/min (shared bucket with GET)
+  const rl = await checkRateLimit(RATE_LIMIT_PROFILES.MERCHANT, user.id);
+  if (!rl.allowed) return rateLimitedResponse(rl);
+
   let body: unknown;
   try {
     body = await request.json();
@@ -49,20 +60,18 @@ export async function PUT(request: NextRequest) {
   }
 
   const parsed = MerchantSchema.safeParse(body);
-  if (!parsed.success) {
-    return err(parsed.error.errors[0].message);
-  }
+  if (!parsed.success) return err(parsed.error.errors[0].message);
 
   const admin = createAdminClient();
   const { data, error } = await admin
     .from('merchants')
     .upsert(
       { user_id: user.id, ...parsed.data, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id' }
+      { onConflict: 'user_id' },
     )
     .select()
     .single();
 
   if (error) return err(error.message, 500);
-  return ok(data);
+  return addRateLimitHeaders(ok(data), rl);
 }

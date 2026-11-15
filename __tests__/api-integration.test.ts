@@ -69,6 +69,27 @@ jest.mock('@/lib/supabase/admin', () => ({
   createAdminClient: jest.fn(() => mockAdmin),
 }));
 
+// ─── Mock: @/lib/rate-limit ──────────────────────────────────────────────────
+
+const mockCheckRateLimit = jest.fn<() => Promise<{ allowed: boolean; remaining: number; resetAt: Date; retryAfter: number }>>();
+const mockRateLimitedResponse = jest.fn();
+const mockAddRateLimitHeaders = jest.fn((resp: Response) => resp);
+
+jest.mock('@/lib/rate-limit', () => ({
+  checkRateLimit: (...args: unknown[]) => mockCheckRateLimit(...(args as Parameters<typeof mockCheckRateLimit>)),
+  rateLimitedResponse: (...args: unknown[]) => mockRateLimitedResponse(...(args as Parameters<typeof mockRateLimitedResponse>)),
+  addRateLimitHeaders: (...args: unknown[]) => mockAddRateLimitHeaders(...(args as Parameters<typeof mockAddRateLimitHeaders>)),
+  getClientIp: jest.fn(() => '127.0.0.1'),
+  RATE_LIMIT_PROFILES: {
+    PAYMENT_STATUS: { id: 'pay-status', maxTokens: 60, windowSeconds: 60, failStrategy: 'open' },
+    PAYMENT_VERIFY: { id: 'pay-verify', maxTokens: 10, windowSeconds: 60, failStrategy: 'closed' },
+    PAYMENT_CREATE: { id: 'pay-create', maxTokens: 30, windowSeconds: 60, failStrategy: 'open' },
+    PAYMENT_LIST: { id: 'pay-list', maxTokens: 60, windowSeconds: 60, failStrategy: 'open' },
+    PAYMENT_CANCEL: { id: 'pay-cancel', maxTokens: 20, windowSeconds: 60, failStrategy: 'open' },
+    MERCHANT: { id: 'merchant', maxTokens: 30, windowSeconds: 60, failStrategy: 'open' },
+  },
+}));
+
 // ─── Mock: @/lib/payment-engine ───────────────────────────────────────────────
 
 const mockCreatePaymentIntent = jest.fn<typeof import('@/lib/payment-engine').createPaymentIntent>();
@@ -141,7 +162,16 @@ function makeRequest(method: string, body?: unknown, search?: string): Request {
 describe('POST /api/payments', () => {
   const { POST } = require('../app/api/payments/route');
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Default: rate limit allows all requests
+    mockCheckRateLimit.mockResolvedValue({
+      allowed: true,
+      remaining: 10,
+      resetAt: new Date(Date.now() + 60_000),
+      retryAfter: 0,
+    });
+  });
 
   function setupMerchantQuery(wallet: string | null) {
     const result = wallet
@@ -248,7 +278,16 @@ describe('POST /api/payments', () => {
 describe('GET /api/payments', () => {
   const { GET } = require('../app/api/payments/route');
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Default: rate limit allows all requests
+    mockCheckRateLimit.mockResolvedValue({
+      allowed: true,
+      remaining: 10,
+      resetAt: new Date(Date.now() + 60_000),
+      retryAfter: 0,
+    });
+  });
 
   test('returns 401 when user is not authenticated', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } });
@@ -289,7 +328,16 @@ describe('GET /api/payments/[id]', () => {
   const { GET } = require('../app/api/payments/[id]/route');
   const params = { params: Promise.resolve({ id: VALID_UUID }) };
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Default: rate limit allows all requests
+    mockCheckRateLimit.mockResolvedValue({
+      allowed: true,
+      remaining: 10,
+      resetAt: new Date(Date.now() + 60_000),
+      retryAfter: 0,
+    });
+  });
 
   test('returns 404 when payment does not exist', async () => {
     mockGetPaymentById.mockResolvedValue(null);
@@ -343,7 +391,16 @@ describe('POST /api/payments/[id]?action=verify', () => {
     });
   }
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Default: rate limit allows all requests
+    mockCheckRateLimit.mockResolvedValue({
+      allowed: true,
+      remaining: 10,
+      resetAt: new Date(Date.now() + 60_000),
+      retryAfter: 0,
+    });
+  });
 
   test('returns 400 when action query param is missing', async () => {
     const req = makeVerifyRequest('');
@@ -437,7 +494,16 @@ describe('DELETE /api/payments/[id]', () => {
   const { DELETE } = require('../app/api/payments/[id]/route');
   const params = { params: Promise.resolve({ id: VALID_UUID }) };
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Default: rate limit allows all requests
+    mockCheckRateLimit.mockResolvedValue({
+      allowed: true,
+      remaining: 10,
+      resetAt: new Date(Date.now() + 60_000),
+      retryAfter: 0,
+    });
+  });
 
   test('returns 401 when user is not authenticated', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } });
@@ -496,7 +562,16 @@ describe('DELETE /api/payments/[id]', () => {
 describe('Duplicate transaction hash rejection', () => {
   const { POST } = require('../app/api/payments/[id]/route');
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Default: rate limit allows all requests
+    mockCheckRateLimit.mockResolvedValue({
+      allowed: true,
+      remaining: 10,
+      resetAt: new Date(Date.now() + 60_000),
+      retryAfter: 0,
+    });
+  });
 
   test('verifyPayment returns review_required status when tx already used', async () => {
     const params = { params: Promise.resolve({ id: VALID_UUID }) };
