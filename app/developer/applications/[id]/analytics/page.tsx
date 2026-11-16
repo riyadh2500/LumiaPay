@@ -13,7 +13,7 @@ interface AnalyticsData {
   totalVolume: number
   recentPayments: Array<{
     id: string
-    amount: string | number
+    amount: any
     status: string
     created_at: string
     transaction_hash?: string
@@ -27,7 +27,7 @@ interface Application {
 
 interface Payment {
   id: string
-  amount: string
+  amount: any
   status: string
   created_at: string
   transaction_hash?: string
@@ -101,8 +101,7 @@ export default function AnalyticsPage() {
       const failed = payments?.filter(p => p.status === 'failed' || p.status === 'expired').length || 0
       const volume = payments?.reduce((sum, p) => {
         if (p.status === 'completed') {
-          const amount = typeof p.amount === 'number' ? p.amount : parseFloat(p.amount)
-          return sum + (amount || 0)
+          return sum + (Number(p.amount) || 0)
         }
         return sum
       }, 0) || 0
@@ -383,9 +382,7 @@ export default function AnalyticsPage() {
                         </code>
                       </td>
                       <td style={{ padding: '16px 24px', fontWeight: 600, fontSize: '13px' }}>
-                        {typeof payment.amount === 'number' 
-                          ? payment.amount.toFixed(4) 
-                          : parseFloat(payment.amount).toFixed(4)} LUMIA
+                        {Number(payment.amount).toFixed(4)} LUMIA
                       </td>
                       <td style={{ padding: '16px 24px' }}>
                         <span className={`badge ${getStatusColor(payment.status)}`} style={{ textTransform: 'capitalize' }}>
