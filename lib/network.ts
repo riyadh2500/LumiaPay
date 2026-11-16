@@ -42,10 +42,15 @@ export const ARC_USDC_SYSTEM_EMITTER =
  * How many blocks to look back when searching for a matching transfer.
  *
  * Arc Testnet produces a block every ~0.48 s.
- * 15-minute payment TTL ÷ 0.48 s/block ≈ 1,875 blocks.
- * We use 2,000 for a small safety margin.
+ * Arc RPC has limitations on log query range.
+ * 
+ * We primarily use Arc Explorer API for transaction verification
+ * which doesn't have these limitations.
  */
-export const BLOCK_LOOKBACK = 2000n;
+export const BLOCK_LOOKBACK = 100n;
+
+/** Arc Explorer API base URL */
+export const ARC_EXPLORER_API = 'https://explorer.testnet.arc.io/api/v2';
 
 /** Payment expiry in seconds (60 minutes for testnet). */
 export const PAYMENT_TTL_SECONDS = 60 * 60;

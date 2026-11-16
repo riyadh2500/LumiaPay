@@ -798,6 +798,24 @@ a.row:hover {
   margin: auto;
   padding: 0 28px;
 }
+
+/* ---------- Developer Pages - Hover Effects ---------- */
+.doc-link-card {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.doc-link-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 48px rgba(47, 89, 67, 0.12) !important;
+}
+.app-card-hover {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.app-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 48px rgba(47, 89, 67, 0.12) !important;
+}
 .site-nav {
   display: flex;
   align-items: center;

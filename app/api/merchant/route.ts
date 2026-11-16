@@ -63,12 +63,18 @@ export async function PUT(request: NextRequest) {
   if (!parsed.success) return err(parsed.error.errors[0].message);
 
   const admin = createAdminClient();
+  
+  // Include email from user auth
+  const merchantData = {
+    user_id: user.id,
+    email: user.email || '',
+    ...parsed.data,
+    updated_at: new Date().toISOString()
+  };
+  
   const { data, error } = await admin
     .from('merchants')
-    .upsert(
-      { user_id: user.id, ...parsed.data, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id' },
-    )
+    .upsert(merchantData, { onConflict: 'user_id' })
     .select()
     .single();
 

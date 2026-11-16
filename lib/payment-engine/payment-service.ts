@@ -64,6 +64,8 @@ export async function createPaymentIntent(
       amount: validated.amount,
       currency: validated.currency,
       wallet_address: validated.wallet_address,
+      payment_address: validated.wallet_address, // Same as wallet_address for recipient
+      network: 'arc-testnet',
       status: 'pending',
       expires_at: expiresAt,
       metadata: input.metadata ?? {},
@@ -140,11 +142,11 @@ export async function verifyPayment(
   }
 
   try {
-    // Update status to verifying
+    // Update status to detecting first (then verifying)
     if (payment.status === 'pending' || payment.status === 'expired') {
       await updatePaymentStatus({
         payment_id: payment.id,
-        new_status: 'verifying',
+        new_status: 'detecting',
         emit_event: false,
       });
     }

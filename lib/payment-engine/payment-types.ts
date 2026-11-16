@@ -24,8 +24,8 @@ export type PaymentStatus =
 // Valid status transitions to prevent invalid state changes
 export const VALID_STATUS_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
   created: ['pending', 'failed'],
-  pending: ['detecting', 'expired', 'failed'],
-  detecting: ['verifying', 'expired', 'failed'],
+  pending: ['detecting', 'verifying', 'expired', 'failed'],
+  detecting: ['verifying', 'paid', 'underpaid', 'overpaid', 'expired', 'failed'],
   verifying: ['paid', 'underpaid', 'overpaid', 'review_required', 'expired', 'failed'],
   paid: [], // Terminal state
   underpaid: ['review_required', 'failed'],

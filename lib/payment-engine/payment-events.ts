@@ -2,11 +2,13 @@
  * Payment Events Module
  * 
  * Manages payment lifecycle events for audit trails, webhooks,
- * and future Developer API integration.
+ * and Developer API integration.
  */
 
 import { createAdminClient } from '../supabase/admin';
 import { PaymentEvent, PaymentEventType, PaymentStatus } from './payment-types';
+import { createWebhookEvent } from '../webhooks/webhook-service';
+import type { WebhookEventPayload, WebhookEventType } from '../webhooks/webhook-service';
 
 // ─── Event Creation ──────────────────────────────────────────────────────────
 
@@ -188,6 +190,9 @@ export async function emitPaymentPaid(
     status: 'paid',
     data: { tx_hash: txHash, verified_amount: amount },
   });
+
+  // Trigger webhook for developer applications
+  await triggerWebhook(paymentId, 'payment.paid');
 }
 
 export async function emitPaymentUnderpaid(
@@ -232,6 +237,9 @@ export async function emitPaymentExpired(
     event_type: 'payment.expired',
     status: 'expired',
   });
+
+  // Trigger webhook
+  await triggerWebhook(paymentId, 'payment.expired');
 }
 
 export async function emitPaymentFailed(
@@ -246,6 +254,9 @@ export async function emitPaymentFailed(
     status: 'failed',
     data: reason ? { reason } : {},
   });
+
+  // Trigger webhook
+  await triggerWebhook(paymentId, 'payment.failed');
 }
 
 export async function emitVerificationFailed(
@@ -277,3 +288,68 @@ export async function emitReviewRequired(
     data: { reason, ...(txHash && { tx_hash: txHash }) },
   });
 }
+
+// ─── Webhook Integration ─────────────────────────────────────────────────────
+
+/**
+ * Helper function to trigger webhook events for payments
+ * 
+ * Checks if payment is linked to a developer application and creates
+ * webhook event for delivery by cron job.
+ */
+async function triggerWebhook(
+  paymentId: string,
+  eventType: WebhookEventType,
+): Promise<void> {
+  try {
+    const admin = createAdminClient();
+
+    // Fetch payment with application info
+    const { data: payment, error } = await admin
+      .from('payments')
+      .select('*')
+      .eq('id', paymentId)
+      .single();
+
+    if (error || !payment || !payment.application_id) {
+      // No application linked (dashboard payment) - skip webhook
+      return;
+    }
+
+    // Build webhook payload
+    const payload: WebhookEventPayload = {
+      id: `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: eventType,
+      created_at: new Date().toISOString(),
+      data: {
+        payment: {
+          id: payment.id,
+          amount: payment.amount,
+          currency: payment.currency,
+          status: payment.status,
+          label: payment.label,
+          wallet_address: payment.wallet_address,
+          tx_hash: payment.tx_hash,
+          verified_amount: payment.verified_amount,
+          created_at: payment.created_at,
+          expires_at: payment.expires_at,
+          paid_at: payment.paid_at,
+          environment: payment.environment,
+          metadata: payment.metadata,
+        },
+      },
+    };
+
+    // Create webhook event (will be delivered by cron job)
+    await createWebhookEvent({
+      applicationId: payment.application_id,
+      eventType,
+      paymentId,
+      payload,
+    });
+  } catch (err) {
+    console.error('[Payment Events] Webhook trigger failed:', err);
+    // Don't throw - webhook failures shouldn't block payment processing
+  }
+}
+

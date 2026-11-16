@@ -35,7 +35,7 @@ export interface DetectedTransaction {
 
 /**
  * Scans the Arc blockchain for matching token transfers to the recipient address.
- * Only considers transactions that occurred after the payment was created.
+ * Uses Arc Explorer API for reliable detection without RPC range limitations.
  */
 export async function detectTransaction(
   options: DetectTransactionOptions
@@ -46,7 +46,46 @@ export async function detectTransaction(
   const createdAtMs = new Date(options.createdAt).getTime();
 
   try {
-    // Determine block range to search
+    // Try Arc Explorer API first (more reliable, no range limits)
+    const { findMatchingTransfer } = await import('./arc-explorer');
+    
+    const explorerResult = await findMatchingTransfer({
+      recipientAddress: options.recipientAddress,
+      expectedAmount: options.expectedAmount,
+      currency: options.symbol,
+      createdAt: options.createdAt,
+      expiresAt: options.expiresAt,
+    });
+
+    if (explorerResult.found && explorerResult.txHash) {
+      console.log(`[Transaction Detection] Found via Arc Explorer: ${explorerResult.txHash}`);
+      
+      // Get full transaction details from RPC
+      const receipt = await client.getTransactionReceipt({
+        hash: explorerResult.txHash as `0x${string}`,
+      });
+
+      const block = await client.getBlock({ blockNumber: receipt.blockNumber });
+      const blockTimestamp = Number(block.timestamp);
+
+      return {
+        found: true,
+        transaction: {
+          tx_hash: explorerResult.txHash,
+          from_address: explorerResult.from?.toLowerCase() || '',
+          to_address: recipient,
+          amount: explorerResult.amount || options.expectedAmount,
+          token_address: token.contractAddress.toLowerCase(),
+          block_number: receipt.blockNumber,
+          block_timestamp: blockTimestamp,
+          confirmed: true,
+        },
+      };
+    }
+
+    console.log('[Transaction Detection] Not found via Arc Explorer, trying RPC...');
+
+    // Fallback to RPC method (limited range, but works for recent txs)
     const latestBlock = await client.getBlockNumber();
     const fromBlock = options.fromBlock ?? 
       (latestBlock > BLOCK_LOOKBACK ? latestBlock - BLOCK_LOOKBACK : 0n);

@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
       amount: parsed.data.amount,
       currency: parsed.data.currency as 'USDC' | 'EURC',
       wallet_address: merchant.wallet_address,
-      ttl_seconds: 60 * 60,
+      ttl_seconds: 15 * 60, // 15 minutes
     });
 
     return addRateLimitHeaders(ok(result.payment, 201), rl);
