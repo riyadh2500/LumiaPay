@@ -351,10 +351,12 @@ export default function LandingPage() {
               <a href="#faq">FAQ</a>
             </div>
             <div className="site-footer-col">
-              <h5>Account</h5>
-              <Link href="/login">Sign in</Link>
-              <Link href="/signup">Sign up</Link>
-              <Link href="/settings">Settings</Link>
+              <h5>Community</h5>
+              <a href="https://t.me/lumiapay" target="_blank" rel="noopener noreferrer">Telegram</a>
+              <a href="https://discord.gg/SXmSd4ARgA" target="_blank" rel="noopener noreferrer">Discord</a>
+              <a href="https://www.reddit.com/u/lumiapay" target="_blank" rel="noopener noreferrer">Reddit</a>
+              <a href="https://medium.com/@lumiapay" target="_blank" rel="noopener noreferrer">Medium</a>
+              <a href="https://x.com/lumiapay" target="_blank" rel="noopener noreferrer">X (Twitter)</a>
             </div>
           </div>
         </footer>
