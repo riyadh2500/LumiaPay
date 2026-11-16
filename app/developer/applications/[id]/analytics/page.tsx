@@ -92,7 +92,7 @@ export default function AnalyticsPage() {
       const failed = payments?.filter(p => p.status === 'failed' || p.status === 'expired').length || 0
       const volume = payments?.reduce((sum, p) => {
         if (p.status === 'completed') {
-          return sum + (parseFloat(p.amount) || 0)
+          return sum + (parseFloat(String(p.amount)) || 0)
         }
         return sum
       }, 0) || 0
@@ -373,7 +373,7 @@ export default function AnalyticsPage() {
                         </code>
                       </td>
                       <td style={{ padding: '16px 24px', fontWeight: 600, fontSize: '13px' }}>
-                        {parseFloat(payment.amount).toFixed(4)} LUMIA
+                        {parseFloat(String(payment.amount)).toFixed(4)} LUMIA
                       </td>
                       <td style={{ padding: '16px 24px' }}>
                         <span className={`badge ${getStatusColor(payment.status)}`} style={{ textTransform: 'capitalize' }}>
