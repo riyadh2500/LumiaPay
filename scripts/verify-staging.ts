@@ -184,7 +184,7 @@ async function verifyFunctions() {
         message: result.success 
           ? `Function works correctly`
           : `Function failed or returned unexpected result`,
-        details: result.details
+        details: (result as any).details
       });
     } catch (error: any) {
       logTest({
