@@ -25,6 +25,15 @@ interface Application {
   name: string
 }
 
+interface Payment {
+  id: string
+  amount: string
+  status: string
+  created_at: string
+  transaction_hash?: string
+  application_id: string
+}
+
 export default function AnalyticsPage() {
   const params = useParams()
   const id = params.id as string
@@ -82,7 +91,7 @@ export default function AnalyticsPage() {
         query = query.gte('created_at', dateFilter.toISOString())
       }
 
-      const { data: payments, error } = await query.order('created_at', { ascending: false })
+      const { data: payments, error } = await query.order('created_at', { ascending: false }) as { data: Payment[] | null, error: any }
 
       if (error) throw error
 
