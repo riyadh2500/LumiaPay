@@ -382,7 +382,7 @@ export default function AnalyticsPage() {
                         </code>
                       </td>
                       <td style={{ padding: '16px 24px', fontWeight: 600, fontSize: '13px' }}>
-                        {Number(payment.amount).toFixed(4)} LUMIA
+                        {(Number(payment.amount) as number).toFixed(4)} LUMIA
                       </td>
                       <td style={{ padding: '16px 24px' }}>
                         <span className={`badge ${getStatusColor(payment.status)}`} style={{ textTransform: 'capitalize' }}>
