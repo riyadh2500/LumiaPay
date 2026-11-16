@@ -13,7 +13,7 @@ interface AnalyticsData {
   totalVolume: number
   recentPayments: Array<{
     id: string
-    amount: number
+    amount: string | number
     status: string
     created_at: string
     transaction_hash?: string
