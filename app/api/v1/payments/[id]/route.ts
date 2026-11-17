@@ -112,8 +112,8 @@ export async function GET(
 
   // ── Build Checkout URL ─────────────────────────────────────────────────────
   const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || 'https://lumia-pay.vercel.app';
-  const checkoutUrl = `${baseUrl}/checkout/${payment.id}`;
+    process.env.NEXT_PUBLIC_SITE_URL || 'https://lumia-pay-two.vercel.app';
+  const checkoutUrl = `${baseUrl}/pay/${payment.id}`;
 
   // ── Response ───────────────────────────────────────────────────────────────
   return NextResponse.json({
