@@ -13,9 +13,10 @@ export default async function PaymentsPage() {
 
   const { data: payments } = await admin
     .from('payments')
-    .select('*')
+    .select('id, status, amount, currency, description, label, created_at, payment_url, expires_at')
     .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(50);
 
   const all = payments ?? [];
 

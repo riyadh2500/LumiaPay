@@ -14,17 +14,28 @@ export default async function DashboardPage() {
   const user = await requireUser();
   const admin = createAdminClient();
 
-  const { data: payments } = await admin
-    .from('payments')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
+  // Run all queries in parallel for speed
+  const [
+    { data: allPayments },
+    { data: recentPayments },
+  ] = await Promise.all([
+    admin
+      .from('payments')
+      .select('id, status, amount')
+      .eq('user_id', user.id),
+    admin
+      .from('payments')
+      .select('id, status, amount, currency, created_at, description, label')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(10),
+  ]);
 
-  const all = payments ?? [];
+  const all = allPayments ?? [];
+  const recent = recentPayments ?? [];
 
   // ── Metrics ──────────────────────────────────────────────────────────────
 
-  // Amounts
   const totalPaid = all
     .filter((p) => p.status === 'paid')
     .reduce((sum: number, p) => sum + parseFloat(p.amount ?? '0'), 0);
@@ -37,22 +48,13 @@ export default async function DashboardPage() {
     .filter((p) => p.status === 'expired')
     .reduce((sum: number, p) => sum + parseFloat(p.amount ?? '0'), 0);
 
-  // Counts
   const countPaid    = all.filter((p) => p.status === 'paid').length;
   const countPending = all.filter((p) => p.status === 'pending').length;
   const countExpired = all.filter((p) => p.status === 'expired').length;
   const totalCount   = all.length;
 
-  // Success rate = paid / total payments × 100  (as requested: divide by total)
   const successRate = totalCount > 0 ? Math.round((countPaid / totalCount) * 100) : 0;
-
-  // USD received ratio = paid amount / total amount of PAID payments only × 100
-  // (shows what % of paid-payment value has been collected — always 100% unless partial)
-  // More useful: ratio of paid count to total count shown as amount context
-  const usdRatio = totalCount > 0 ? Math.round((countPaid / totalCount) * 100) : 0;
-
-
-  const recent = all.slice(0, 10);
+  const usdRatio = successRate;
 
   return (
     <AppShell email={user.email}>
