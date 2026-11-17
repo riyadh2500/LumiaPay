@@ -2,10 +2,8 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 
 /**
- * Server component guard. Redirects to /login if the user is not authenticated.
- * Use at the top of any protected server page.
- *
- * Returns the authenticated user object for use in the page.
+ * Server component guard.
+ * Middleware already handles redirects, this just returns the user.
  */
 export async function requireUser() {
   const supabase = await createClient();
