@@ -2154,3 +2154,154 @@ html {
   flex-direction: column;
   padding: 8px 0;
 }
+
+/* ---------------------------------------------------
+   ENHANCED ANIMATIONS - Premium Feel
+--------------------------------------------------- */
+
+/* Glassmorphism nav on scroll */
+.site-nav {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Hero badge shimmer */
+.hero-badge {
+  box-shadow: 0 0 0 1px rgba(200,255,112,0.3), 0 4px 20px rgba(200,255,112,0.1);
+  transition: box-shadow 0.3s ease;
+}
+.hero-badge:hover {
+  box-shadow: 0 0 0 1px rgba(200,255,112,0.6), 0 4px 24px rgba(200,255,112,0.2);
+}
+
+/* Hero h1 text glow */
+.hero h1 em {
+  filter: drop-shadow(0 0 30px rgba(29,113,232,0.2));
+}
+
+/* Floating animation for hero preview */
+.hero-preview {
+  animation: scaleIn 1s ease-out 1s both, heroFloat 6s ease-in-out 2s infinite !important;
+}
+
+@keyframes heroFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+/* Feature cards hover effect */
+.feature-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: default;
+}
+.feature-card:hover {
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: 0 20px 60px rgba(24,58,44,0.12);
+}
+.feature-card:hover .feature-icon {
+  background: var(--lime);
+  transform: scale(1.1) rotate(5deg);
+  transition: all 0.3s ease;
+}
+
+/* Step cards stagger animation */
+.step:nth-child(1) { animation: fadeInUp 0.6s ease-out 0.1s both; }
+.step:nth-child(2) { animation: fadeInUp 0.6s ease-out 0.2s both; }
+.step:nth-child(3) { animation: fadeInUp 0.6s ease-out 0.3s both; }
+.step:nth-child(4) { animation: fadeInUp 0.6s ease-out 0.4s both; }
+
+/* CTA band aurora effect */
+.cta-band {
+  position: relative;
+  overflow: hidden;
+}
+.cta-band::before {
+  background: 
+    radial-gradient(ellipse at 20% 50%, rgba(200,255,112,0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 50%, rgba(29,113,232,0.12) 0%, transparent 50%) !important;
+  animation: auroraPulse 8s ease-in-out infinite alternate !important;
+}
+
+@keyframes auroraPulse {
+  0% { transform: scale(1) translateX(0%); opacity: 0.7; }
+  50% { transform: scale(1.1) translateX(5%); opacity: 1; }
+  100% { transform: scale(1) translateX(-5%); opacity: 0.7; }
+}
+
+/* Button micro-interactions */
+.button {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
+  position: relative;
+  overflow: hidden;
+}
+.button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.button:hover::after { opacity: 1; }
+.button:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+.button:active {
+  transform: translateY(0px) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.button.lime:hover {
+  box-shadow: 0 8px 25px rgba(200,255,112,0.4);
+}
+
+/* Card hover glow */
+.card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.card:hover {
+  box-shadow: 0 12px 40px rgba(24,58,44,0.1);
+}
+
+/* Nav link hover underline animation */
+.site-nav-links a::after {
+  background: linear-gradient(90deg, var(--lime), #2f9160) !important;
+}
+
+/* Metric cards shine on hover */
+.card.metric {
+  position: relative;
+  overflow: hidden;
+}
+.card.metric::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  transform: skewX(-15deg);
+  transition: left 0.5s ease;
+}
+.card.metric:hover::before {
+  left: 150%;
+}
+
+/* Footer links hover */
+.site-footer-col a {
+  transition: color 0.2s ease, transform 0.2s ease;
+  display: inline-block;
+}
+.site-footer-col a:hover {
+  transform: translateX(4px);
+}
+
+/* Scroll reveal utility */
+@keyframes revealUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.reveal {
+  animation: revealUp 0.7s ease-out both;
+}
