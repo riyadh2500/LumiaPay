@@ -2305,3 +2305,84 @@ html {
 .reveal {
   animation: revealUp 0.7s ease-out both;
 }
+
+/* --- Hero preview bar fix --- */
+.hero-preview-bar {
+  display: flex;
+  gap: 6px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--line);
+  align-items: center;
+  background: var(--canvas);
+}
+.hero-preview-bar i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--line);
+}
+
+/* --- Glassmorphism stat cards in hero --- */
+.hero > div > div {
+  animation: fadeInUp 0.6s ease-out 0.9s both;
+}
+
+/* --- Feature icon transition --- */
+.feature-icon {
+  transition: all 0.3s ease;
+}
+
+/* --- Currency pill glow --- */
+.currency-pill {
+  transition: all 0.3s ease;
+  cursor: default;
+}
+.currency-pill:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(200,255,112,0.2);
+  border-color: rgba(200,255,112,0.5);
+}
+.currency-pill i {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* --- Step number glow --- */
+.step-num {
+  transition: all 0.3s ease;
+}
+.step:hover .step-num {
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(200,255,112,0.4);
+}
+
+/* --- Trust item hover --- */
+.trust-item {
+  transition: all 0.3s ease;
+}
+.trust-item:hover {
+  transform: translateX(4px);
+  border-left: 3px solid var(--lime);
+}
+
+/* --- FAQ smooth open --- */
+.faq-item {
+  transition: background 0.2s ease;
+}
+.faq-item[open] {
+  background: rgba(200,255,112,0.04);
+  border-radius: 8px;
+  padding: 20px 8px;
+}
+
+/* --- Gradient border on hero preview --- */
+.hero-preview {
+  box-shadow: 
+    0 30px 80px rgba(24,58,44,0.13),
+    0 0 0 1px rgba(200,255,112,0.1),
+    inset 0 1px 0 rgba(255,255,255,0.8) !important;
+}
+
+/* --- Smooth scroll --- */
+html {
+  scroll-behavior: smooth;
+}
