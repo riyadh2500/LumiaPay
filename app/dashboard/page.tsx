@@ -25,8 +25,8 @@ export default async function DashboardPage() {
 
   // Run all queries in parallel for speed
   const [
-    { data: allPayments, error: allError },
-    { data: recentPayments, error: recentError },
+    { data: allPayments },
+    { data: recentPayments },
   ] = await Promise.all([
     admin
       .from('payments')
@@ -34,13 +34,11 @@ export default async function DashboardPage() {
       .eq('user_id', user.id),
     admin
       .from('payments')
-      .select('id, status, amount, currency, created_at, description, label')
+      .select('*')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(10),
   ]);
-
-  if (allError) console.error('[Dashboard] allPayments error:', allError);
-  if (recentError) console.error('[Dashboard] recentPayments error:', recentError);
 
   const all = allPayments ?? [];
   const recent = recentPayments ?? [];
