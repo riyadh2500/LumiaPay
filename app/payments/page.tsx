@@ -11,6 +11,15 @@ export default async function PaymentsPage() {
   const user = await requireUser();
   const admin = createAdminClient();
 
+  // Auto-expire payments that have passed their expiry time
+  const now = new Date().toISOString();
+  await admin
+    .from('payments')
+    .update({ status: 'expired' })
+    .eq('user_id', user.id)
+    .eq('status', 'pending')
+    .lt('expires_at', now);
+
   const { data: payments } = await admin
     .from('payments')
     .select('id, status, amount, currency, description, label, created_at, payment_url, expires_at')

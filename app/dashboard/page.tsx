@@ -14,6 +14,15 @@ export default async function DashboardPage() {
   const user = await requireUser();
   const admin = createAdminClient();
 
+  // Auto-expire payments that have passed their expiry time
+  const now = new Date().toISOString();
+  await admin
+    .from('payments')
+    .update({ status: 'expired' })
+    .eq('user_id', user.id)
+    .eq('status', 'pending')
+    .lt('expires_at', now);
+
   // Run all queries in parallel for speed
   const [
     { data: allPayments },
