@@ -2,12 +2,26 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { BarChart2, Plus, CreditCard, Settings, LogOut, Code2, Key, Webhook, FileText, TrendingUp, BookOpen, TestTube } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [devMode, setDevMode] = useState(false)
+
+  useEffect(() => {
+    // Read initial value
+    setDevMode(localStorage.getItem('developer_mode') === 'true')
+
+    // Listen for changes from Settings page toggle
+    const handler = () => {
+      setDevMode(localStorage.getItem('developer_mode') === 'true')
+    }
+    window.addEventListener('developer_mode_change', handler)
+    return () => window.removeEventListener('developer_mode_change', handler)
+  }, [])
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -62,7 +76,8 @@ export default function Sidebar() {
           Settings
         </Link>
 
-        {/* Developer Section */}
+        {/* Developer Section - only show if developer mode is enabled */}
+        {devMode && (
         <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
           <div style={{ 
             padding: '0 16px 8px', 
@@ -123,6 +138,7 @@ export default function Sidebar() {
             Sandbox
           </Link>
         </div>
+        )}
 
       </div>
 
