@@ -35,13 +35,7 @@ export default function AnimatedBackground() {
     };
     window.addEventListener('click', onClick);
 
-    // Orbs only - no particles
-    const orbs = [
-      { x: 0.1,  y: 0.1,  r: 0.45, color: '#c8ff70', speed: 0.0003, mw: 0.12 },
-      { x: 0.9,  y: 0.1,  r: 0.38, color: '#1d71e8', speed: 0.0004, mw: -0.1 },
-      { x: 0.5,  y: 0.9,  r: 0.40, color: '#29d9a3', speed: 0.00035, mw: 0.08 },
-      { x: 0.8,  y: 0.6,  r: 0.28, color: '#a78bfa', speed: 0.0005, mw: -0.1 },
-    ];
+    const orbs: { x: number; y: number; r: number; color: string; speed: number; mw: number }[] = [];
 
     const draw = () => {
       const W = canvas.width;
