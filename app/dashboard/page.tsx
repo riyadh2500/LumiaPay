@@ -13,6 +13,7 @@ export const metadata = { title: 'Dashboard — LumiaPay' };
 export default async function DashboardPage() {
   const user = await requireUser();
   const admin = createAdminClient();
+  console.log('[Dashboard] Logged in user ID:', user.id, '| Email:', user.email);
 
   // Auto-expire payments that have passed their expiry time
   const now = new Date().toISOString();
@@ -50,16 +51,16 @@ export default async function DashboardPage() {
     .reduce((sum: number, p) => sum + parseFloat(p.amount ?? '0'), 0);
 
   const pendingAmount = all
-    .filter((p) => p.status === 'pending')
+    .filter((p) => p.status === 'pending' || p.status === 'detecting' || p.status === 'verifying')
     .reduce((sum: number, p) => sum + parseFloat(p.amount ?? '0'), 0);
 
   const expiredAmount = all
-    .filter((p) => p.status === 'expired')
+    .filter((p) => p.status === 'expired' || p.status === 'failed')
     .reduce((sum: number, p) => sum + parseFloat(p.amount ?? '0'), 0);
 
   const countPaid    = all.filter((p) => p.status === 'paid').length;
-  const countPending = all.filter((p) => p.status === 'pending').length;
-  const countExpired = all.filter((p) => p.status === 'expired').length;
+  const countPending = all.filter((p) => p.status === 'pending' || p.status === 'detecting' || p.status === 'verifying').length;
+  const countExpired = all.filter((p) => p.status === 'expired' || p.status === 'failed').length;
   const totalCount   = all.length;
 
   const successRate = totalCount > 0 ? Math.round((countPaid / totalCount) * 100) : 0;
