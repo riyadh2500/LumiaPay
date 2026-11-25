@@ -1,7 +1,7 @@
 import { requireUser } from '@/components/require-user';
 import AppShell from '@/components/app-shell';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { Webhook, AlertCircle, CheckCircle, XCircle, Clock, Activity } from 'lucide-react';
+import { Webhook, CheckCircle, Activity, AlertCircle, ExternalLink } from 'lucide-react';
 
 export const metadata = { title: 'Webhooks — LumiaPay Developer' };
 
@@ -9,440 +9,139 @@ export default async function WebhooksPage() {
   const user = await requireUser();
   const admin = createAdminClient();
 
-  // Fetch all applications
+  // Fetch applications
   const { data: applications } = await admin
     .from('applications')
     .select('id, name, environment, status')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
-  // Fetch all webhook endpoints for user's applications
-  const { data: webhooks } = await admin
-    .from('webhook_endpoints')
-    .select('*, application:applications!inner(name, environment)')
-    .eq('application.user_id', user.id)
-    .order('created_at', { ascending: false });
-
-  // Fetch recent webhook events
-  const { data: recentEvents } = await admin
-    .from('webhook_events')
-    .select('id, event_type, status, created_at, delivered_at, attempt_count, application:applications!inner(name)')
-    .eq('application.user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(10);
-
-  function formatDate(isoString: string) {
-    return new Date(isoString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  // Fetch webhooks - safe (may not exist)
+  let webhooks: any[] | null = null;
+  try {
+    const { data } = await admin
+      .from('webhooks')
+      .select('*, application:applications!inner(name, environment)')
+      .eq('application.user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    webhooks = data;
+  } catch {
+    webhooks = null;
   }
 
-  const totalWebhooks = webhooks?.length || 0;
-  const activeWebhooks = webhooks?.filter(w => w.status === 'active').length || 0;
-  const totalEvents = recentEvents?.length || 0;
-  const deliveredEvents = recentEvents?.filter(e => e.status === 'delivered').length || 0;
+  const totalWebhooks = webhooks?.length ?? 0;
+  const activeWebhooks = (webhooks as any[])?.filter((w: any) => w.is_active || w.status === 'active').length ?? 0;
 
   return (
     <AppShell email={user.email}>
       <div>
-        <span className="eyebrow">
-          <Webhook size={13} /> Webhooks
-        </span>
+        <span className="eyebrow"><Webhook size={13} /> Webhooks</span>
         <h1 className="heading">Webhook Endpoints</h1>
-        <p className="subheading">
-          Configure and monitor webhook endpoints for real-time payment notifications.
-        </p>
+        <p className="subheading">Configure webhook endpoints for real-time payment notifications.</p>
       </div>
 
-      {/* Webhook Stats */}
-      <div style={{ 
-        display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
-        gap: '14px',
-        marginTop: '28px'
-      }}>
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '8px' }}>
         <div className="card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted)' }}>
-              Total Endpoints
-            </div>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '10px',
-              background: '#e7f0ff',
-              color: '#1d71e8',
-              display: 'grid',
-              placeItems: 'center'
-            }}>
-              <Webhook size={16} />
-            </div>
-          </div>
-          <div style={{ fontSize: '28px', fontWeight: 800, letterSpacing: '-1.2px' }}>
-            {totalWebhooks}
-          </div>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Total Endpoints</div>
+          <div style={{ fontSize: '28px', fontWeight: 800 }}>{totalWebhooks}</div>
         </div>
-
         <div className="card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted)' }}>
-              Active Endpoints
-            </div>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '10px',
-              background: '#dff8e9',
-              color: '#197946',
-              display: 'grid',
-              placeItems: 'center'
-            }}>
-              <CheckCircle size={16} />
-            </div>
-          </div>
-          <div style={{ fontSize: '28px', fontWeight: 800, letterSpacing: '-1.2px', color: '#197946' }}>
-            {activeWebhooks}
-          </div>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Active</div>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: '#16a34a' }}>{activeWebhooks}</div>
         </div>
-
         <div className="card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted)' }}>
-              Recent Events
-            </div>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '10px',
-              background: '#f3e5ff',
-              color: '#7c3aed',
-              display: 'grid',
-              placeItems: 'center'
-            }}>
-              <Activity size={16} />
-            </div>
-          </div>
-          <div style={{ fontSize: '28px', fontWeight: 800, letterSpacing: '-1.2px' }}>
-            {totalEvents}
-          </div>
-        </div>
-
-        <div className="card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted)' }}>
-              Delivered
-            </div>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '10px',
-              background: '#dbf9ec',
-              color: '#0f9d63',
-              display: 'grid',
-              placeItems: 'center'
-            }}>
-              <CheckCircle size={16} strokeWidth={3} />
-            </div>
-          </div>
-          <div style={{ fontSize: '28px', fontWeight: 800, letterSpacing: '-1.2px', color: '#0f9d63' }}>
-            {deliveredEvents}
-          </div>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Applications</div>
+          <div style={{ fontSize: '28px', fontWeight: 800 }}>{applications?.length ?? 0}</div>
         </div>
       </div>
 
-      {/* Webhook Endpoints Table */}
+      {/* Info box */}
+      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', padding: '14px 18px', display: 'flex', gap: '12px', alignItems: 'flex-start', marginBottom: '8px' }}>
+        <AlertCircle size={16} color="#2563eb" style={{ marginTop: '1px', flexShrink: 0 }} />
+        <div style={{ fontSize: '13px', color: '#1e3a5f' }}>
+          <strong>Webhooks are configured per application.</strong> Go to your application → Webhooks tab to add or manage webhook endpoints.
+          <a href="/developer/applications" style={{ color: '#2563eb', fontWeight: 600, marginLeft: '8px', textDecoration: 'none' }}>
+            Go to Applications →
+          </a>
+        </div>
+      </div>
+
+      {/* Webhooks list */}
+      {!webhooks || webhooks.length === 0 ? (
+        <div className="card" style={{ padding: '64px 24px', textAlign: 'center' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '18px', background: 'var(--mint)', color: '#1d5c3a', display: 'grid', placeItems: 'center', margin: '0 auto 20px' }}>
+            <Webhook size={32} strokeWidth={1.5} />
+          </div>
+          <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px' }}>No webhooks yet</h3>
+          <p style={{ fontSize: '14px', color: 'var(--muted)', marginBottom: '20px' }}>
+            Create an application and add webhook endpoints to receive payment notifications.
+          </p>
+          <a href="/developer/applications" className="btn btn-primary">Go to Applications</a>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
+              <thead>
+                <tr style={{ background: 'var(--paper)' }}>
+                  {['Endpoint URL', 'Application', 'Status', 'Created'].map(h => (
+                    <th key={h} style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', borderBottom: '1px solid var(--line)' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(webhooks as any[]).map((wh: any) => (
+                  <tr key={wh.id} style={{ borderBottom: '1px solid var(--line)' }}>
+                    <td style={{ padding: '14px 20px' }}>
+                      <code style={{ fontSize: '12px', fontFamily: 'DM Mono, monospace', color: 'var(--ink)' }}>
+                        {wh.url || wh.endpoint_url || '—'}
+                      </code>
+                    </td>
+                    <td style={{ padding: '14px 20px', fontSize: '13px', fontWeight: 600 }}>
+                      {(wh.application as any)?.name || '—'}
+                    </td>
+                    <td style={{ padding: '14px 20px' }}>
+                      <span style={{
+                        background: (wh.is_active || wh.status === 'active') ? '#dcfce7' : '#fee2e2',
+                        color: (wh.is_active || wh.status === 'active') ? '#16a34a' : '#dc2626',
+                        padding: '2px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700
+                      }}>
+                        {(wh.is_active || wh.status === 'active') ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '14px 20px', fontSize: '12px', color: 'var(--muted)' }}>
+                      {new Date(wh.created_at).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Webhook Events */}
       <div style={{ marginTop: '32px' }}>
-        <h2 className="section-title" style={{ marginBottom: '16px' }}>Webhook Endpoints</h2>
-
-        {!webhooks || webhooks.length === 0 ? (
-          <div className="card" style={{ padding: '64px 24px' }}>
-            <div style={{
-              textAlign: 'center',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '16px'
-            }}>
-              <div style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '18px',
-                background: 'var(--mint)',
-                color: '#1d5c3a',
-                display: 'grid',
-                placeItems: 'center'
-              }}>
-                <Webhook size={32} strokeWidth={1.5} />
-              </div>
-              <div>
-                <p style={{ 
-                  fontSize: '16px',
-                  fontWeight: 700,
-                  margin: '0 0 6px',
-                  letterSpacing: '-0.3px'
-                }}>
-                  No webhook endpoints configured
-                </p>
-                <p style={{ 
-                  fontSize: '13px',
-                  color: 'var(--muted)',
-                  margin: '0 0 20px',
-                  maxWidth: '360px'
-                }}>
-                  Create an application and configure webhook endpoints to receive real-time payment events.
-                </p>
-              </div>
-              <a href="/developer/applications" className="button lime">
-                Go to Applications
-              </a>
+        <h2 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '16px' }}>Supported Events</h2>
+        <div className="card" style={{ padding: '0 20px' }}>
+          {[
+            { event: 'payment.created', desc: 'A new payment request was created', color: '#dbeafe' },
+            { event: 'payment.detecting', desc: 'Transaction detected on blockchain', color: '#ede9fe' },
+            { event: 'payment.paid', desc: 'Payment confirmed successfully', color: '#dcfce7' },
+            { event: 'payment.expired', desc: 'Payment link expired', color: '#fef3c7' },
+            { event: 'payment.failed', desc: 'Payment failed or was cancelled', color: '#fee2e2' },
+          ].map(e => (
+            <div key={e.event} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '14px 0', borderBottom: '1px solid var(--line)' }}>
+              <code style={{ background: e.color, padding: '3px 10px', borderRadius: '6px', fontSize: '12px', fontFamily: 'DM Mono, monospace', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                {e.event}
+              </code>
+              <span style={{ fontSize: '13px', color: 'var(--muted)' }}>{e.desc}</span>
             </div>
-          </div>
-        ) : (
-          <div className="card">
-            <div className="table-container">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>URL</th>
-                    <th>Application</th>
-                    <th>Environment</th>
-                    <th>Status</th>
-                    <th>Events</th>
-                    <th>Failures</th>
-                    <th>Last Success</th>
-                    <th>Created</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {webhooks.map((webhook: any) => (
-                    <tr key={webhook.id}>
-                      <td>
-                        <code className="code-inline text-xs">
-                          {webhook.url.length > 40 
-                            ? `${webhook.url.substring(0, 40)}...` 
-                            : webhook.url
-                          }
-                        </code>
-                        {webhook.description && (
-                          <div className="text-xs text-gray-500 mt-1">
-                            {webhook.description}
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <div className="font-medium">{webhook.application?.name}</div>
-                      </td>
-                      <td>
-                        <span className={`badge ${
-                          webhook.application?.environment === 'live' 
-                            ? 'badge-success' 
-                            : 'badge-warning'
-                        }`}>
-                          {webhook.application?.environment}
-                        </span>
-                      </td>
-                      <td>
-                        {webhook.status === 'active' ? (
-                          <span className="badge badge-success">Active</span>
-                        ) : webhook.status === 'disabled' ? (
-                          <span className="badge badge-error">Disabled</span>
-                        ) : (
-                          <span className="badge badge-default">{webhook.status}</span>
-                        )}
-                      </td>
-                      <td>
-                        <div className="text-sm">
-                          {webhook.enabled_events?.length || 0} event types
-                        </div>
-                      </td>
-                      <td>
-                        {webhook.failure_count > 0 ? (
-                          <span className="text-red-600 font-semibold">
-                            {webhook.failure_count}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">0</span>
-                        )}
-                      </td>
-                      <td className="text-sm text-gray-600">
-                        {webhook.last_success_at ? (
-                          formatDate(webhook.last_success_at)
-                        ) : (
-                          <span className="text-gray-400">Never</span>
-                        )}
-                      </td>
-                      <td className="text-sm text-gray-600">
-                        {formatDate(webhook.created_at)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Recent Webhook Events */}
-      {recentEvents && recentEvents.length > 0 && (
-        <div style={{ marginTop: '32px' }}>
-          <h2 className="section-title" style={{ marginBottom: '16px' }}>Recent Webhook Events</h2>
-
-          <div className="card">
-            <div className="table-container">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Event Type</th>
-                    <th>Application</th>
-                    <th>Status</th>
-                    <th>Attempts</th>
-                    <th>Created</th>
-                    <th>Delivered</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentEvents.map((event: any) => (
-                    <tr key={event.id}>
-                      <td>
-                        <code className="code-inline">{event.event_type}</code>
-                      </td>
-                      <td>
-                        <div className="text-sm">{event.application?.name}</div>
-                      </td>
-                      <td>
-                        {event.status === 'delivered' ? (
-                          <div className="flex items-center gap-2">
-                            <CheckCircle size={14} className="text-green-600" />
-                            <span className="badge badge-success">Delivered</span>
-                          </div>
-                        ) : event.status === 'failed' ? (
-                          <div className="flex items-center gap-2">
-                            <XCircle size={14} className="text-red-600" />
-                            <span className="badge badge-error">Failed</span>
-                          </div>
-                        ) : event.status === 'pending' ? (
-                          <div className="flex items-center gap-2">
-                            <Clock size={14} className="text-yellow-600" />
-                            <span className="badge badge-warning">Pending</span>
-                          </div>
-                        ) : (
-                          <span className="badge badge-default">{event.status}</span>
-                        )}
-                      </td>
-                      <td>
-                        <span className="font-mono text-sm">{event.attempt_count}</span>
-                      </td>
-                      <td className="text-sm text-gray-600">
-                        {formatDate(event.created_at)}
-                      </td>
-                      <td className="text-sm text-gray-600">
-                        {event.delivered_at ? (
-                          formatDate(event.delivered_at)
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Help Section */}
-      <div className="card" style={{ marginTop: '32px', padding: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
-          <div style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '11px',
-            background: '#e7f0ff',
-            color: '#1d71e8',
-            display: 'grid',
-            placeItems: 'center',
-            flexShrink: 0
-          }}>
-            <AlertCircle size={18} />
-          </div>
-          <div style={{ fontSize: '13px', lineHeight: '1.6' }}>
-            <div style={{ fontWeight: 700, marginBottom: '6px' }}>Managing Webhook Endpoints</div>
-            <p style={{ color: 'var(--muted)', margin: '0 0 10px' }}>
-              To create new webhook endpoints or modify existing ones, visit the Applications page and select the specific application.
-            </p>
-            <a 
-              href="/developer/applications" 
-              style={{ 
-                color: '#1d71e8',
-                fontWeight: 700,
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              Go to Applications →
-            </a>
-          </div>
+          ))}
         </div>
       </div>
-
-      {applications && applications.length > 0 && (
-        <div style={{ marginTop: '32px' }}>
-          <h2 className="section-title" style={{ marginBottom: '16px' }}>Quick Actions</h2>
-          <div style={{ 
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '14px'
-          }}>
-            {applications.map((app: any) => (
-              <a
-                key={app.id}
-                href={`/developer/applications/${app.id}`}
-                className="card app-card-hover"
-                style={{ 
-                  padding: '20px',
-                  display: 'block',
-                  textDecoration: 'none'
-                }}
-              >
-                <div style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '11px',
-                  background: '#f3e5ff',
-                  color: '#7c3aed',
-                  display: 'grid',
-                  placeItems: 'center',
-                  marginBottom: '12px'
-                }}>
-                  <Webhook size={18} />
-                </div>
-                <div style={{ 
-                  fontWeight: 800,
-                  fontSize: '14px',
-                  marginBottom: '4px',
-                  letterSpacing: '-0.3px',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {app.name}
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                  Configure webhooks for this application
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
     </AppShell>
   );
 }
