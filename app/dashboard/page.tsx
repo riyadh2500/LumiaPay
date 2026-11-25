@@ -13,7 +13,6 @@ export const metadata = { title: 'Dashboard — LumiaPay' };
 export default async function DashboardPage() {
   const user = await requireUser();
   const admin = createAdminClient();
-  console.log('[Dashboard] Logged in user ID:', user.id, '| Email:', user.email);
 
   // Auto-expire payments that have passed their expiry time
   const now = new Date().toISOString();
