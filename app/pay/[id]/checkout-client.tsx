@@ -78,6 +78,17 @@ export default function CheckoutClient({ payment: initial, merchantName }: Check
   const poll = useCallback(async () => {
     if (status !== 'pending' && status !== 'detecting') return;
     try {
+      // For multi-chain payments, use the multi-chain verifier
+      if (isMultiChain) {
+        const res = await fetch(`/api/payments/${initial.id}/verify-chain`, { method: 'POST' })
+        const data = await res.json()
+        if (data.status && !['pending', 'detecting'].includes(data.status)) {
+          setStatus(data.status)
+          if (data.txHash) setTxHash(data.txHash)
+        }
+        return
+      }
+      // Arc payments use standard verifier
       const res = await fetch(`/api/payments/${initial.id}?action=verify`, { method: 'POST' });
       const data = await res.json();
       if (data.status && data.status !== 'pending' && data.status !== 'detecting') {
@@ -87,7 +98,7 @@ export default function CheckoutClient({ payment: initial, merchantName }: Check
     } catch {
       // ignore
     }
-  }, [status, initial.id]);
+  }, [status, initial.id, isMultiChain]);
 
   useEffect(() => {
     if (!isPending) return;
